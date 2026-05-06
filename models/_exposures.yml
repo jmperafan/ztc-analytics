@@ -9,8 +9,6 @@ exposures:
       dbt Cloud add-on. Enables ad-hoc metric queries directly from
       spreadsheets without writing SQL.
     depends_on:
-      - ref('fct_daily_court_stats')
-      - ref('fct_hourly_weather_usage')
       - ref('dim_members_anonymized')
     owner:
       name: ZTC Analytics
@@ -26,8 +24,6 @@ exposures:
       Any JDBC-compatible BI tool (Tableau, Mode, Hex, Lightdash) can
       connect and query metrics without writing SQL.
     depends_on:
-      - ref('fct_daily_court_stats')
-      - ref('fct_hourly_weather_usage')
       - ref('dim_members_anonymized')
     owner:
       name: ZTC Analytics
