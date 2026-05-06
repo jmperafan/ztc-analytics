@@ -1,5 +1,24 @@
+# dbt
 target/
 dbt_packages/
 logs/
-.env
+
+# Credentials
 profiles.yml
+dbt_cloud.yml
+dbt_cloud.yaml
+.user.yml
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS
+.DS_Store
+dbt_internal_packages/
+
+# Claude Code
+.claude/

@@ -23,19 +23,19 @@
 }}
 
 WITH fct_reservations AS (
-    SELECT * FROM {{ ref('zuilense_tennis_club', 'fct_reservations') }}
+    SELECT * FROM {{ ref('ztc_core', 'fct_reservations') }}
 ),
 
 bridge_member_reservations AS (
-    SELECT * FROM {{ ref('zuilense_tennis_club', 'bridge_member_reservations') }}
+    SELECT * FROM {{ ref('ztc_core', 'bridge_member_reservations') }}
 ),
 
-dim_members_anonimized AS (
-    SELECT * FROM {{ ref('dim_members_anonimized') }}
+dim_members_anonymized AS (
+    SELECT * FROM {{ ref('dim_members_anonymized') }}
 ),
 
 fct_weather AS (
-    SELECT * FROM {{ ref('zuilense_tennis_club', 'fct_weather') }}
+    SELECT * FROM {{ ref('ztc_core', 'fct_weather') }}
 ),
 
 reservations AS (
@@ -56,8 +56,8 @@ reservations AS (
         reservation_type = 'Gereserveerd'
 
         {% if is_incremental() %}
-            AND reservation_date BETWEEN ({{ get_previous_hwm(ref('zuilense_tennis_club', 'fct_reservations')) }})
-            AND ({{ get_current_hwm(ref('zuilense_tennis_club', 'fct_reservations')) }})
+            AND reservation_date BETWEEN ({{ get_previous_hwm(ref('ztc_core', 'fct_reservations')) }})
+            AND ({{ get_current_hwm(ref('ztc_core', 'fct_reservations')) }})
         {% endif %}
 ),
 
@@ -74,7 +74,7 @@ member_profiles AS (
         current_type_of_membership,
         is_club_member,
         is_knltb_member
-    FROM dim_members_anonimized
+    FROM dim_members_anonymized
 ),
 
 weather AS (

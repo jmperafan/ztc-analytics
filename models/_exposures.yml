@@ -11,7 +11,7 @@ exposures:
     depends_on:
       - ref('fct_daily_court_stats')
       - ref('fct_hourly_weather_usage')
-      - ref('dim_members_anonimized')
+      - ref('dim_members_anonymized')
     owner:
       name: ZTC Analytics
       email: analytics@ztc.nl
@@ -28,7 +28,7 @@ exposures:
     depends_on:
       - ref('fct_daily_court_stats')
       - ref('fct_hourly_weather_usage')
-      - ref('dim_members_anonimized')
+      - ref('dim_members_anonymized')
     owner:
       name: ZTC Analytics
       email: analytics@ztc.nl

@@ -9,7 +9,7 @@ def model(dbt, session):
     )
 
     df = pl.from_arrow(
-        dbt.ref("zuilense_tennis_club", "fct_reservations").to_arrow()
+        dbt.ref("ztc_core", "fct_reservations").to_arrow()
     )
 
     stats = df.group_by("COURT_NUMBER").agg(

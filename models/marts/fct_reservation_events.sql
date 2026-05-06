@@ -15,15 +15,15 @@
 }}
 
 WITH fct_reservations AS (
-    SELECT * FROM {{ ref('zuilense_tennis_club', 'fct_reservations') }}
+    SELECT * FROM {{ ref('ztc_core', 'fct_reservations') }}
 ),
 
 bridge_member_reservations AS (
-    SELECT * FROM {{ ref('zuilense_tennis_club', 'bridge_member_reservations') }}
+    SELECT * FROM {{ ref('ztc_core', 'bridge_member_reservations') }}
 ),
 
-dim_members_anonimized AS (
-    SELECT * FROM {{ ref('dim_members_anonimized') }}
+dim_members_anonymized AS (
+    SELECT * FROM {{ ref('dim_members_anonymized') }}
 ),
 
 reservations AS (
@@ -59,7 +59,7 @@ member_profiles AS (
         current_type_of_membership,
         is_club_member,
         is_knltb_member
-    FROM dim_members_anonimized
+    FROM dim_members_anonymized
 ),
 
 final AS (

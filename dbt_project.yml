@@ -1,12 +1,12 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # ZTC Analytics — downstream Mesh project
 #
-# This project consumes public models from zuilense_tennis_club (the foundation
+# This project consumes public models from ztc_core (the foundation
 # project) via cross-project refs and produces marts, metrics, and ML models
 # for BI and data science consumption.
 #
 # Cross-project ref syntax:
-#   {{ ref('zuilense_tennis_club', 'fct_court_usage') }}
+#   {{ ref('ztc_core', 'fct_court_usage') }}
 # ──────────────────────────────────────────────────────────────────────────────
 
 name: 'ztc_analytics'

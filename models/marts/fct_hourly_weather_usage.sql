@@ -8,11 +8,11 @@
 }}
 
 WITH fct_court_usage AS (
-    SELECT * FROM {{ ref('zuilense_tennis_club', 'fct_court_usage') }}
+    SELECT * FROM {{ ref('ztc_core', 'fct_court_usage') }}
 ),
 
 fct_weather AS (
-    SELECT * FROM {{ ref('zuilense_tennis_club', 'fct_weather') }}
+    SELECT * FROM {{ ref('ztc_core', 'fct_weather') }}
 ),
 
 hourly_usage AS (

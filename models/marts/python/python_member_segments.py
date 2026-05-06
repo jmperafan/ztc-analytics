@@ -14,13 +14,13 @@ N_CLUSTERS = 4
 
 def load_data(dbt) -> pl.DataFrame:
     reservations = pl.from_arrow(
-        dbt.ref("zuilense_tennis_club", "fct_reservations").to_arrow()
+        dbt.ref("ztc_core", "fct_reservations").to_arrow()
     )
     bridge = pl.from_arrow(
-        dbt.ref("zuilense_tennis_club", "bridge_member_reservations").to_arrow()
+        dbt.ref("ztc_core", "bridge_member_reservations").to_arrow()
     )
     members = pl.from_arrow(
-        dbt.ref("zuilense_tennis_club", "dim_members").to_arrow()
+        dbt.ref("ztc_core", "dim_members").to_arrow()
     )
     return (
         reservations.join(bridge, on="RESERVATION_ID")

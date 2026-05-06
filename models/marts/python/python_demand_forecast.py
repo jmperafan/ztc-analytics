@@ -21,7 +21,7 @@ SEASONAL_FACTORS = pl.DataFrame(
 def load_usage(dbt) -> pl.DataFrame:
     return (
         pl.from_arrow(
-            dbt.ref("zuilense_tennis_club", "fct_court_usage").to_arrow()
+            dbt.ref("ztc_core", "fct_court_usage").to_arrow()
         )
         .filter(pl.col("IS_WINTER_BREAK").cast(pl.Boolean).not_())
         .with_columns(pl.col("RESERVATION_DATE").cast(pl.Date))

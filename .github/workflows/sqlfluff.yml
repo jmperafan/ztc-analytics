@@ -1,0 +1,32 @@
+name: "SQLFluff"
+
+# ----------------------------------------------------------------------------
+# Local tooling — no database credentials required.
+#
+# SQLFluff enforces consistent SQL style across models and macros.
+# Config lives in .sqlfluff; dialect and templater are set there.
+# ----------------------------------------------------------------------------
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  sqlfluff:
+    name: SQLFluff
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install sqlfluff sqlfluff-templater-dbt dbt-core
+
+      - name: SQLFluff lint
+        run: sqlfluff lint models/ macros/

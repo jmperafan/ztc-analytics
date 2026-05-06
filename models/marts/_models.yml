@@ -112,9 +112,12 @@ models:
 
   - name: fct_hourly_usage
     description: >
-      One row per court slot filtered to non-winter-break days. Adds start_hour
-      (extracted from start_time) for hour-of-day analysis. Thin wrapper over
-      fct_court_usage — use this model when you need to slice court usage by hour.
+      Slot-level court activity for hour-of-day analysis. One row per minute-level
+      court slot (same grain as fct_court_usage in ztc_core), filtered to
+      non-winter-break days and enriched with start_hour. Use this model when you
+      need the individual slot detail sliced by hour — e.g. a heatmap of activity
+      by hour and reservation type. For pre-aggregated court × hour × date summaries
+      joined with weather, use fct_hourly_weather_usage instead.
     columns:
       - name: court_number
         description: Tennis court number (1–5).
@@ -154,7 +157,7 @@ models:
       - name: total_reservations
         description: Total number of reservations on this court.
 
-  - name: dim_members_anonimized
+  - name: dim_members_anonymized
     description: >
       Anonymised member dimension. One row per current or former member of ZTC.
       Use this model to count active members and slice by demographic attributes.
@@ -243,3 +246,63 @@ models:
         description: Number of days ahead of the last observed date this row represents.
       - name: model_type
         description: Model identifier — always "seasonal_dow_with_trend" for traceability.
+
+  - name: fct_reservations_hwm
+    description: >
+      One row per actual court booking, enriched with member demographics and
+      weather conditions at booking time. Built as a merge incremental using the
+      High Watermark (HWM) pattern: the exact upper-bound timestamp used on each
+      run is stored in a central watermark table before execution, so processing
+      windows are mutually exclusive and collectively exhaustive.
+
+      Compare with fct_reservation_events (microbatch — dbt manages the time
+      window automatically, no weather join) to see two different approaches to
+      incremental loading side by side.
+    columns:
+      - name: reservation_id
+        description: Deterministic surrogate key for the reservation. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: reservation_date
+        description: Calendar date of the booking.
+        data_tests:
+          - not_null
+      - name: court_number
+        description: Tennis court number (1–5).
+        data_tests:
+          - not_null
+      - name: start_time
+        description: Start time of the reservation (TIME, 24-hour).
+      - name: end_time
+        description: End time of the reservation (TIME, 24-hour).
+      - name: duration_in_mins
+        description: Duration of the reservation in minutes.
+      - name: day_of_week
+        description: Day-of-week integer (1 = Sunday, 7 = Saturday in Snowflake).
+      - name: day_of_week_name
+        description: Full day name (e.g. Monday).
+      - name: start_hour
+        description: Hour component of start_time (0–23).
+      - name: member_id
+        description: Foreign key to dim_members_anonymized. NULL for guest bookings.
+      - name: gender
+        description: Member's gender. NULL for unlinked bookings.
+      - name: age_group
+        description: Member's age group bucket. NULL for unlinked bookings.
+      - name: city
+        description: Member's city of residence. NULL for unlinked bookings.
+      - name: current_type_of_membership
+        description: Member's active membership tier. NULL for unlinked bookings.
+      - name: is_club_member
+        description: True if the member holds an active club membership.
+      - name: is_knltb_member
+        description: True if the member is registered with the national tennis federation.
+      - name: temperature
+        description: Air temperature in °C at the hour of the booking.
+      - name: precipitation
+        description: Precipitation in mm at the hour of the booking.
+      - name: wind_speed
+        description: Wind speed in km/h at the hour of the booking.
+      - name: ideal_weather
+        description: True when tennis conditions were ideal (temp 10–35°C, no rain, wind ≤ 20 km/h).

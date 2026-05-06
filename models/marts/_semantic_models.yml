@@ -1,0 +1,277 @@
+semantic_models:
+
+  # ---------------------------------------------------------------------------
+  # DAILY COURT STATISTICS
+  # One row per court × date. Primary grain for utilization reporting.
+  # ---------------------------------------------------------------------------
+  - name: daily_court_stats
+    model: ref('fct_daily_court_stats')
+    description: >
+      Daily aggregation of court usage. Use this semantic model to query
+      utilization percentages, booked vs available minutes, and trends over time.
+    defaults:
+      agg_time_dimension: reservation_date
+
+    entities:
+      - name: daily_court_slot
+        type: primary
+        expr: daily_court_key
+
+    dimensions:
+      - name: reservation_date
+        type: time
+        type_params:
+          time_granularity: day
+      - name: court_number
+        type: categorical
+
+    measures:
+      - name: booked_minutes
+        description: Total minutes booked on a court in a day.
+        agg: sum
+        expr: booked_minutes
+      - name: available_minutes
+        description: Total playable minutes on a court in a day.
+        agg: sum
+        expr: available_minutes
+      - name: booked_slots
+        description: Number of booked minute-level slots.
+        agg: sum
+        expr: booked_slots
+      - name: available_slots
+        description: Number of available (unbooked) minute-level slots.
+        agg: sum
+        expr: available_slots
+      - name: average_utilization_pct
+        description: Average utilization percentage across court-days.
+        agg: average
+        expr: utilization_pct
+
+  # ---------------------------------------------------------------------------
+  # RESERVATION EVENTS
+  # One row per actual booking with member demographics.
+  # ---------------------------------------------------------------------------
+  - name: reservation_events
+    model: ref('fct_reservation_events')
+    description: >
+      Booking-level fact enriched with member demographics. Use this semantic
+      model to count bookings, slice by member segment, or analyse patterns
+      by day of week and hour.
+    defaults:
+      agg_time_dimension: reservation_date
+
+    entities:
+      - name: reservation
+        type: primary
+        expr: reservation_id
+      - name: member
+        type: foreign
+        expr: member_id
+
+    dimensions:
+      - name: reservation_date
+        type: time
+        type_params:
+          time_granularity: day
+      - name: court_number
+        type: categorical
+      - name: day_of_week_name
+        type: categorical
+      - name: start_hour
+        type: categorical
+      - name: gender
+        type: categorical
+      - name: age_group
+        type: categorical
+      - name: city
+        type: categorical
+      - name: current_type_of_membership
+        type: categorical
+      - name: is_club_member
+        type: categorical
+      - name: is_knltb_member
+        type: categorical
+
+    measures:
+      - name: total_reservations
+        description: Total number of court bookings.
+        agg: count
+        expr: reservation_id
+      - name: total_booked_minutes
+        description: Total court time booked in minutes.
+        agg: sum
+        expr: duration_in_mins
+
+  # ---------------------------------------------------------------------------
+  # MEMBERS (anonymised)
+  # One row per current or former club member.
+  # ---------------------------------------------------------------------------
+  - name: members
+    model: ref('dim_members_anonymized')
+    description: >
+      Anonymised member dimension. Use this semantic model to count members
+      and slice by demographic attributes.
+
+    entities:
+      - name: member
+        type: primary
+        expr: member_id
+
+    dimensions:
+      - name: gender
+        type: categorical
+      - name: age_group
+        type: categorical
+      - name: city
+        type: categorical
+      - name: current_type_of_membership
+        type: categorical
+      - name: is_club_member
+        type: categorical
+      - name: is_knltb_member
+        type: categorical
+      - name: member_since
+        type: time
+        type_params:
+          time_granularity: day
+
+    measures:
+      - name: total_members
+        description: Total number of distinct members.
+        agg: count_distinct
+        expr: member_id
+
+  # ---------------------------------------------------------------------------
+  # HOURLY WEATHER USAGE
+  # One row per court × date × hour with weather conditions.
+  # ---------------------------------------------------------------------------
+  - name: hourly_weather_usage
+    model: ref('fct_hourly_weather_usage')
+    description: >
+      Hourly court usage joined with weather observations. Use this semantic
+      model to explore the relationship between weather and court demand.
+    defaults:
+      agg_time_dimension: reservation_date
+
+    entities:
+      - name: hourly_court_slot
+        type: primary
+        expr: "CONCAT(court_number, '_', reservation_date, '_', start_hour)"
+
+    dimensions:
+      - name: reservation_date
+        type: time
+        type_params:
+          time_granularity: day
+      - name: court_number
+        type: categorical
+      - name: start_hour
+        type: categorical
+      - name: ideal_weather
+        type: categorical
+
+    measures:
+      - name: hourly_booked_slots
+        description: Number of booked minute-level slots in this hour.
+        agg: sum
+        expr: booked_slots
+      - name: hourly_available_slots
+        description: Number of available minute-level slots in this hour.
+        agg: sum
+        expr: available_slots
+      - name: average_temperature
+        description: Average temperature in °C across court-hour-days.
+        agg: average
+        expr: temperature
+      - name: average_hourly_utilization_pct
+        description: Average utilization percentage across court-hour-days.
+        agg: average
+        expr: utilization_pct
+
+
+metrics:
+
+  # ---------------------------------------------------------------------------
+  # UTILIZATION METRICS
+  # ---------------------------------------------------------------------------
+  - name: court_utilization_rate
+    label: Court Utilization Rate
+    description: >
+      Average percentage of available court time that is booked. Computed as
+      the average of utilization_pct across all court-days.
+    type: simple
+    type_params:
+      measure:
+        name: average_utilization_pct
+        fill_nulls_with: 0
+
+  - name: total_booked_minutes
+    label: Total Booked Minutes
+    description: Sum of all booked court minutes.
+    type: simple
+    type_params:
+      measure: booked_minutes
+
+  - name: total_available_minutes
+    label: Total Available Minutes
+    description: Sum of all playable (non-closed) court minutes.
+    type: simple
+    type_params:
+      measure: available_minutes
+
+  # ---------------------------------------------------------------------------
+  # BOOKING METRICS
+  # ---------------------------------------------------------------------------
+  - name: total_bookings
+    label: Total Bookings
+    description: Total number of individual court reservations.
+    type: simple
+    type_params:
+      measure: total_reservations
+
+  - name: total_booking_minutes
+    label: Total Booking Duration (minutes)
+    description: Total duration across all reservations in minutes.
+    type: simple
+    type_params:
+      measure: total_booked_minutes
+
+  # ---------------------------------------------------------------------------
+  # MEMBER METRICS
+  # ---------------------------------------------------------------------------
+  - name: total_members
+    label: Total Members
+    description: Total number of distinct club members.
+    type: simple
+    type_params:
+      measure: total_members
+
+  - name: active_members
+    label: Active Members
+    description: Number of members with an active club membership.
+    type: simple
+    type_params:
+      measure: total_members
+    filter: |
+      {{ Dimension('member__is_club_member') }} = TRUE
+
+  - name: knltb_members
+    label: KNLTB-Registered Members
+    description: Number of members also registered with the national tennis federation.
+    type: simple
+    type_params:
+      measure: total_members
+    filter: |
+      {{ Dimension('member__is_knltb_member') }} = TRUE
+
+  # ---------------------------------------------------------------------------
+  # WEATHER-CORRELATED METRICS
+  # ---------------------------------------------------------------------------
+  - name: ideal_weather_utilization
+    label: Utilization on Ideal-Weather Days
+    description: Average hourly utilization when weather conditions are ideal for tennis.
+    type: simple
+    type_params:
+      measure: average_hourly_utilization_pct
+    filter: |
+      {{ Dimension('hourly_court_slot__ideal_weather') }} = TRUE
