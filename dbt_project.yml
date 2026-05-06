@@ -1,0 +1,57 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# ZTC Analytics — downstream Mesh project
+#
+# This project consumes public models from zuilense_tennis_club (the foundation
+# project) via cross-project refs and produces marts, metrics, and ML models
+# for BI and data science consumption.
+#
+# Cross-project ref syntax:
+#   {{ ref('zuilense_tennis_club', 'fct_court_usage') }}
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: 'ztc_analytics'
+profile: 'ztc_analytics'
+
+require-dbt-version: ">=1.8.0"
+
+model-paths:    ["models"]
+test-paths:     ["tests"]
+macro-paths:    ["macros"]
+snapshot-paths: ["snapshots"]
+docs-paths:     ["docs"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+vars:
+  watermark_schema: watermark
+  watermark_table:  dbt_high_watermark
+
+models:
+  ztc_analytics:
+
+    +persist_docs:
+      relation: true
+      columns:  true
+
+    # ── MARTS LAYER ───────────────────────────────────────────────────────────
+    # Models here are the consumer-facing surface: BI dashboards, spreadsheets,
+    # and downstream applications. Python/ML models live here too.
+    marts:
+      +materialized: table
+      +schema: marts
+      +tags: ["marts"]
+      +group: analytics_engineering
+      +access: public
+      +meta:
+        owner: "analytics"
+        sla:   "daily"
+
+    # ── ML / DATA SCIENCE SUB-LAYER ───────────────────────────────────────────
+    # Python models owned by the data science team. Slightly looser governance:
+    # tests on keys only, no contracts required (outputs are exploratory).
+    marts/python:
+      +tags: ["marts", "python", "ml"]
+      +group: data_science
+      +access: protected

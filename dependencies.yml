@@ -1,0 +1,6 @@
+projects:
+  # The foundation project. All public core models are referenceable via:
+  #   {{ ref('zuilense_tennis_club', '<model_name>') }}
+  # dbt Cloud resolves this automatically when both projects are connected in
+  # the same dbt Cloud account under the same environment.
+  - name: zuilense_tennis_club

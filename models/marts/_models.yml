@@ -1,0 +1,245 @@
+models:
+  - name: fct_reservation_events
+    description: >
+      One row per actual court booking, enriched with member demographics.
+      Built as a microbatch incremental model (batch_size=day, lookback=3) —
+      dbt processes one day at a time and automatically injects the time-window
+      filter; no is_incremental() filter is needed in the SQL. Use this model
+      for booking-level analysis sliced by member profile, day-of-week, or hour.
+    columns:
+      - name: reservation_id
+        description: Surrogate key for the reservation. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: reservation_date
+        description: >
+          Calendar date of the booking. This is the event_time column used by
+          the microbatch strategy to partition runs.
+        data_tests:
+          - not_null
+      - name: court_number
+        description: Tennis court number (1–5).
+        data_tests:
+          - not_null
+      - name: start_time
+        description: Start time of the reservation (TIME, 24-hour).
+      - name: end_time
+        description: End time of the reservation (TIME, 24-hour).
+      - name: duration_in_mins
+        description: Duration of the reservation in minutes.
+      - name: day_of_week
+        description: Day-of-week integer for the reservation date (1 = Sunday, 7 = Saturday in Snowflake).
+      - name: day_of_week_name
+        description: Full day name (e.g. Monday) for the reservation date.
+      - name: start_hour
+        description: Hour component of start_time (0–23).
+      - name: member_id
+        description: Foreign key to dim_members. NULL for guest bookings not linked to a member.
+      - name: gender
+        description: Member's gender. NULL for unlinked bookings.
+      - name: age_group
+        description: Member's age group bucket. NULL for unlinked bookings.
+      - name: city
+        description: Member's city of residence. NULL for unlinked bookings.
+      - name: current_type_of_membership
+        description: Name of the member's active membership tier. NULL for unlinked bookings.
+      - name: is_club_member
+        description: True if the member holds an active club membership.
+      - name: is_knltb_member
+        description: True if the member is registered with the national tennis federation.
+
+  - name: fct_daily_court_stats
+    description: "{{ doc('fct_daily_court_stats') }}"
+    columns:
+      - name: daily_court_key
+        description: Surrogate key — CONCAT(court_number, '_', reservation_date). Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: court_number
+        description: Tennis court number (1–5).
+        data_tests:
+          - not_null
+      - name: reservation_date
+        description: Calendar date of the aggregated slots.
+        data_tests:
+          - not_null
+      - name: booked_slots
+        description: Number of minute-level slots marked as booked (Gereserveerd).
+      - name: available_slots
+        description: Number of minute-level slots marked as available (Beschikbaar).
+      - name: total_playable_slots
+        description: Total booked + available slots (excludes closed hours).
+      - name: booked_minutes
+        description: Total minutes booked on this court on this date.
+      - name: available_minutes
+        description: Total playable minutes on this court on this date.
+      - name: utilization_pct
+        description: "{{ doc('utilization_pct') }}"
+
+  - name: fct_hourly_weather_usage
+    description: "{{ doc('fct_hourly_weather_usage') }}"
+    columns:
+      - name: reservation_date
+        description: Calendar date of the hour.
+        data_tests:
+          - not_null
+      - name: start_hour
+        description: Hour of day (0–23) derived from start_time.
+        data_tests:
+          - not_null
+      - name: court_number
+        description: Tennis court number (1–5).
+        data_tests:
+          - not_null
+      - name: booked_slots
+        description: Number of minute-level slots marked as booked in this hour.
+      - name: available_slots
+        description: Number of minute-level slots available in this hour.
+      - name: utilization_pct
+        description: Share of playable slots in this hour that were booked (%).
+      - name: temperature
+        description: Hourly temperature in degrees Celsius from weather data.
+      - name: precipitation
+        description: Hourly precipitation in mm.
+      - name: wind_speed
+        description: Hourly wind speed in km/h.
+      - name: ideal_weather
+        description: >
+          Boolean flag from the tennis_weather macro: TRUE when temperature is
+          10–35 °C, precipitation = 0, and wind speed ≤ 20 km/h.
+
+  - name: fct_hourly_usage
+    description: >
+      One row per court slot filtered to non-winter-break days. Adds start_hour
+      (extracted from start_time) for hour-of-day analysis. Thin wrapper over
+      fct_court_usage — use this model when you need to slice court usage by hour.
+    columns:
+      - name: court_number
+        description: Tennis court number (1–5).
+        data_tests:
+          - not_null
+      - name: reservation_date
+        description: Calendar date of the slot.
+      - name: start_time
+        description: Start time of the slot (TIME, 24-hour).
+      - name: start_hour
+        description: Hour component of start_time (0–23).
+      - name: reservation_type
+        description: Type of slot (actual booking, available, or closed).
+      - name: event_description
+        description: Free-text description of the event or booking.
+
+  - name: python_court_stats
+    config:
+      static_analysis: off
+    description: >
+      Introductory example of a dbt Python model. Computes descriptive statistics
+      on reservation duration per court — average, median, standard deviation, and
+      total count. Median is the main reason to use Python here: Snowflake SQL has
+      no native MEDIAN aggregate function, making this a natural Python use case.
+    columns:
+      - name: court_number
+        description: Tennis court number (1–5).
+        data_tests:
+          - unique
+          - not_null
+      - name: avg_duration_mins
+        description: Mean reservation duration in minutes for this court.
+      - name: median_duration_mins
+        description: Median reservation duration in minutes for this court.
+      - name: std_duration_mins
+        description: Standard deviation of reservation duration in minutes for this court.
+      - name: total_reservations
+        description: Total number of reservations on this court.
+
+  - name: dim_members_anonimized
+    description: >
+      Anonymised member dimension. One row per current or former member of ZTC.
+      Use this model to count active members and slice by demographic attributes.
+    columns:
+      - name: member_id
+        description: Unique club membership number. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: member_since
+        description: Date the member joined the club.
+      - name: gender
+        description: Member's gender.
+      - name: age_group
+        description: Member's age group bucket.
+      - name: city
+        description: Member's city of residence.
+      - name: current_type_of_membership
+        description: Name of the currently active membership tier.
+      - name: is_club_member
+        description: True if the member holds an active club membership.
+      - name: is_knltb_member
+        description: True if the member is registered with the national tennis federation.
+
+  - name: python_member_segments
+    config:
+      static_analysis: off
+    description: >
+      K-means clustering (4 segments) of club members based on their booking behaviour.
+      Each row is one member with their cluster label and the five features used to
+      derive it: total bookings, average duration, average start hour, weekend ratio,
+      and number of distinct courts used. Segment labels are assigned heuristically
+      from cluster centroids: Casual Player, Weekend Player, Frequent Morning Player,
+      and Frequent Evening Player.
+    columns:
+      - name: member_id
+        description: Foreign key to dim_members. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: segment
+        description: Numeric cluster ID (0–3) produced by KMeans.
+        data_tests:
+          - not_null
+      - name: segment_label
+        description: Human-readable segment name derived from cluster characteristics.
+        data_tests:
+          - not_null
+      - name: total_bookings
+        description: Total number of reservations made by the member.
+      - name: avg_duration_mins
+        description: Average reservation length in minutes.
+      - name: avg_start_hour
+        description: Average hour-of-day when the member starts a reservation (24-hour).
+      - name: pct_weekend
+        description: Share of reservations that fall on Saturday or Sunday (0–1).
+      - name: unique_courts
+        description: Number of distinct courts the member has ever booked.
+
+  - name: python_demand_forecast
+    config:
+      static_analysis: off
+    description: >
+      30-day court utilization forecast produced by a day-of-week seasonal model with
+      a recent-trend adjustment. One row per court × forecast date combination. The
+      predicted utilization rate is the share of the operating window (08:00–23:00 =
+      900 minutes) expected to be booked. Winter-break days and closed periods are
+      excluded from the historical training data; monthly seasonal multipliers encode
+      the lower outdoor usage typical of Dutch winters.
+    columns:
+      - name: court_number
+        description: Tennis court number (1–5).
+        data_tests:
+          - not_null
+      - name: forecast_date
+        description: The calendar date being forecast.
+        data_tests:
+          - not_null
+      - name: predicted_utilization_rate
+        description: Expected share of available minutes that will be booked (0–1).
+      - name: day_of_week
+        description: Day-of-week integer for the forecast date (0 = Monday, 6 = Sunday).
+      - name: month
+        description: Calendar month of the forecast date (1–12).
+      - name: forecast_horizon_days
+        description: Number of days ahead of the last observed date this row represents.
+      - name: model_type
+        description: Model identifier — always "seasonal_dow_with_trend" for traceability.

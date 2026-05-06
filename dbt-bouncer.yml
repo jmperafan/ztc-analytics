@@ -1,0 +1,38 @@
+dbt_artifacts_dir: target
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ZTC ANALYTICS PROJECT — relaxed governance
+#
+# This project consumes stable, contracted public models from the foundation
+# project, so we can afford looser rules here. Descriptions are encouraged but
+# not required on every column. Tests are required on primary keys only.
+# Python/ML models are exempt from naming and contract checks.
+# ──────────────────────────────────────────────────────────────────────────────
+
+manifest_checks:
+
+  # ── Naming conventions (SQL marts only, not Python models) ────────────────
+  - name: check_model_names
+    include: ^models/marts
+    exclude: ^models/marts/python
+    model_name_pattern: ^(fct_|dim_|rpt_)
+
+  - name: check_model_names
+    include: ^models/marts/python
+    model_name_pattern: ^python_
+
+  # ── Descriptions required on every model ─────────────────────────────────
+  - name: check_model_description_populated
+    include: ^models/
+
+  # ── Primary key tests required on all non-Python mart models ──────────────
+  - name: check_model_has_tests_by_name
+    include: ^models/marts
+    exclude: ^models/marts/python
+    test_names:
+      - not_null
+
+  # ── Cap fanout to keep the DAG manageable ────────────────────────────────
+  - name: check_model_max_fanout
+    include: ^models/
+    max_downstream_models: 10

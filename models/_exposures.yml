@@ -1,0 +1,60 @@
+exposures:
+  - name: semantic_layer_google_sheets
+    label: "dbt Semantic Layer — Google Sheets"
+    type: application
+    maturity: medium
+    url: https://docs.getdbt.com/docs/use-dbt-semantic-layer/gsheets
+    description: >
+      Google Sheets connected to the dbt Semantic Layer via the native
+      dbt Cloud add-on. Enables ad-hoc metric queries directly from
+      spreadsheets without writing SQL.
+    depends_on:
+      - ref('fct_daily_court_stats')
+      - ref('fct_hourly_weather_usage')
+      - ref('dim_members_anonimized')
+    owner:
+      name: ZTC Analytics
+      email: analytics@ztc.nl
+
+  - name: semantic_layer_api
+    label: "dbt Semantic Layer — JDBC/GraphQL API"
+    type: application
+    maturity: low
+    url: https://docs.getdbt.com/docs/use-dbt-semantic-layer/sl-api-overview
+    description: >
+      The dbt Semantic Layer exposes a JDBC endpoint and a GraphQL API.
+      Any JDBC-compatible BI tool (Tableau, Mode, Hex, Lightdash) can
+      connect and query metrics without writing SQL.
+    depends_on:
+      - ref('fct_daily_court_stats')
+      - ref('fct_hourly_weather_usage')
+      - ref('dim_members_anonimized')
+    owner:
+      name: ZTC Analytics
+      email: analytics@ztc.nl
+
+  - name: ml_demand_forecast
+    label: "Court Demand Forecast"
+    type: ml
+    maturity: low
+    description: >
+      30-day court utilization forecast produced by the python_demand_forecast
+      model. Consumed by the club operations dashboard to guide court scheduling.
+    depends_on:
+      - ref('python_demand_forecast')
+    owner:
+      name: Data Science
+      email: datascience@ztc-utrecht.nl
+
+  - name: ml_member_segments
+    label: "Member Segmentation"
+    type: ml
+    maturity: medium
+    description: >
+      K-means member segments produced by python_member_segments. Used by the
+      membership team to target communications by playing style.
+    depends_on:
+      - ref('python_member_segments')
+    owner:
+      name: Data Science
+      email: datascience@ztc-utrecht.nl

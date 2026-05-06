@@ -1,0 +1,16 @@
+groups:
+
+  # Analytics engineering owns the SQL marts layer. These models are public
+  # and serve as the primary surface for BI tools and dashboards.
+  - name: analytics_engineering
+    owner:
+      name: Analytics Engineering
+      email: analytics@ztc-utrecht.nl
+
+  # Data science owns the Python and ML models. These are marked protected
+  # so they can be referenced within this project but not by external projects
+  # without explicit promotion to public.
+  - name: data_science
+    owner:
+      name: Data Science
+      email: datascience@ztc-utrecht.nl
