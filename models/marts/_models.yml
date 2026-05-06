@@ -1,4 +1,12 @@
 models:
+  - name: metricflow_time_spine
+    description: Daily time spine required by MetricFlow for the semantic layer.
+    time_spine:
+      standard_granularity_column: date_day
+    columns:
+      - name: date_day
+        granularity: day
+
   - name: fct_reservation_events
     description: >
       One row per actual court booking, enriched with member demographics.
