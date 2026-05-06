@@ -111,6 +111,8 @@ semantic_models:
     description: >
       Anonymised member dimension. Use this semantic model to count members
       and slice by demographic attributes.
+    defaults:
+      agg_time_dimension: member_since
 
     entities:
       - name: member
