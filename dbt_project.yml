@@ -48,10 +48,17 @@ models:
         owner: "analytics"
         sla:   "daily"
 
-    # ── ML / DATA SCIENCE SUB-LAYER ───────────────────────────────────────────
+    # ── ML / DATA SCIENCE ────────────────────────────────────────────────────
     # Python models owned by the data science team. Slightly looser governance:
     # tests on keys only, no contracts required (outputs are exploratory).
-    marts/python:
+    python:
       +tags: ["marts", "python", "ml"]
       +group: data_science
       +access: protected
+
+    # ── METRICS / SEMANTIC LAYER ──────────────────────────────────────────────
+    # MetricFlow time spine and any supporting models for the semantic layer.
+    metrics:
+      +materialized: table
+      +schema: metrics
+      +tags: ["metrics"]
