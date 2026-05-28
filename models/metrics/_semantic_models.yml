@@ -5,6 +5,7 @@ semantic_models:
   # One row per current or former club member.
   # ---------------------------------------------------------------------------
   - name: members
+    label: Members
     model: ref('dim_members_anonymized')
     description: >
       Anonymised member dimension. Use this semantic model to count members
@@ -19,24 +20,32 @@ semantic_models:
 
     dimensions:
       - name: gender
+        label: Gender
         type: categorical
       - name: age_group
+        label: Age group
         type: categorical
       - name: city
+        label: City
         type: categorical
       - name: current_type_of_membership
+        label: Membership tier
         type: categorical
       - name: is_club_member
+        label: Active club member
         type: categorical
       - name: is_knltb_member
+        label: KNLTB-registered
         type: categorical
       - name: member_since
+        label: Member since
         type: time
         type_params:
           time_granularity: day
 
     measures:
       - name: total_members
+        label: Total members
         description: Total number of distinct members.
         agg: count_distinct
         expr: member_id
@@ -45,26 +54,26 @@ semantic_models:
 metrics:
 
   - name: total_members
-    label: Total Members
+    label: Total members
     description: Total number of distinct club members.
     type: simple
     type_params:
       measure: total_members
 
   - name: active_members
-    label: Active Members
+    label: Active members
     description: Number of members with an active club membership.
     type: simple
     type_params:
       measure: total_members
     filter: |
-      {{ Dimension('member__is_club_member') }} = TRUE
+      {{ Dimension('member__is_club_member') }}
 
   - name: knltb_members
-    label: KNLTB-Registered Members
+    label: KNLTB-registered members
     description: Number of members also registered with the national tennis federation.
     type: simple
     type_params:
       measure: total_members
     filter: |
-      {{ Dimension('member__is_knltb_member') }} = TRUE
+      {{ Dimension('member__is_knltb_member') }}
