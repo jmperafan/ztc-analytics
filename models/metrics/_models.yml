@@ -1,8 +1,12 @@
 models:
   - name: metricflow_time_spine
-    description: Daily time spine required by MetricFlow for the semantic layer.
+    description: Daily time spine from 1980-01-01 through one year after the current date, required by MetricFlow.
     time_spine:
       standard_granularity_column: date_day
     columns:
       - name: date_day
+        description: Calendar date at daily grain used for MetricFlow time-based joins.
         granularity: day
+        data_tests:
+          - unique
+          - not_null

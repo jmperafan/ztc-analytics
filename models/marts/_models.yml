@@ -101,22 +101,31 @@ models:
     agg_time_dimension: member_since
     metrics:
       - name: total_members
-        label: Total members
-        description: Total number of distinct club members.
+        label: Total members (current snapshot)
+        description: >
+          Current count of distinct member records in the latest snapshot. The metric time
+          is member_since, so time-grouped results represent join cohorts rather than
+          historical point-in-time member totals.
         type: simple
         agg: count_distinct
         expr: member_id
       - name: active_members
-        label: Active members
-        description: Number of members with an active club membership.
+        label: Active members (current snapshot)
+        description: >
+          Current count of distinct members with an active club membership in the latest
+          snapshot. The metric time is member_since, so time-grouped results represent
+          join cohorts rather than historical active-member totals.
         type: simple
         filter: |
           {{ Dimension('member__is_club_member') }}
         agg: count_distinct
         expr: member_id
       - name: knltb_members
-        label: KNLTB-registered members
-        description: Number of members also registered with the national tennis federation.
+        label: KNLTB-registered members (current snapshot)
+        description: >
+          Current count of distinct members registered with the national tennis federation
+          in the latest snapshot. The metric time is member_since, so time-grouped results
+          represent join cohorts rather than historical KNLTB-member totals.
         type: simple
         filter: |
           {{ Dimension('member__is_knltb_member') }}

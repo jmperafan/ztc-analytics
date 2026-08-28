@@ -5,7 +5,7 @@ WITH members AS (
 final AS (
     SELECT
         member_id,
-        member_since,
+        NULLIF(member_since, CAST('1900-01-01' AS DATE)) AS member_since,
         gender,
         age_group,
         city,
