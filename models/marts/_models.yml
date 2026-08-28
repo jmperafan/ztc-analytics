@@ -56,20 +56,81 @@ models:
         data_tests:
           - unique
           - not_null
+        entity:
+          type: primary
+          name: member
       - name: member_since
         description: Date the member joined the club.
+        dimension:
+          type: time
+          label: Member since
+        granularity: day
       - name: gender
         description: Member's gender.
+        dimension:
+          type: categorical
+          label: Gender
       - name: age_group
         description: Member's age group bucket.
+        dimension:
+          type: categorical
+          label: Age group
       - name: city
         description: Member's city of residence.
+        dimension:
+          type: categorical
+          label: City
       - name: current_type_of_membership
         description: Name of the currently active membership tier.
+        dimension:
+          type: categorical
+          label: Membership tier
       - name: is_club_member
         description: True if the member holds an active club membership.
+        dimension:
+          type: categorical
+          label: Active club member
       - name: is_knltb_member
         description: True if the member is registered with the national tennis federation.
+        dimension:
+          type: categorical
+          label: KNLTB-registered
+    semantic_model:
+      enabled: true
+      name: members
+    agg_time_dimension: member_since
+    metrics:
+      - name: total_members
+        label: Total members (current snapshot)
+        description: >
+          Current count of distinct member records in the latest snapshot. The metric time
+          is member_since, so time-grouped results represent join cohorts rather than
+          historical point-in-time member totals.
+        type: simple
+        agg: count_distinct
+        expr: member_id
+      - name: active_members
+        label: Active members (current snapshot)
+        description: >
+          Current count of distinct members with an active club membership in the latest
+          snapshot. The metric time is member_since, so time-grouped results represent
+          join cohorts rather than historical active-member totals.
+        type: simple
+        filter: |
+          {{ Dimension('member__is_club_member') }}
+        agg: count_distinct
+        expr: member_id
+      - name: knltb_members
+        label: KNLTB-registered members (current snapshot)
+        description: >
+          Current count of distinct members registered with the national tennis federation
+          in the latest snapshot. The metric time is member_since, so time-grouped results
+          represent join cohorts rather than historical KNLTB-member totals.
+        type: simple
+        filter: |
+          {{ Dimension('member__is_knltb_member') }}
+        agg: count_distinct
+        expr: member_id
 
   - name: python_member_segments
     config:
@@ -135,4 +196,3 @@ models:
         description: Number of days ahead of the last observed date this row represents.
       - name: model_type
         description: Model identifier — always "seasonal_dow_with_trend" for traceability.
-

@@ -14,11 +14,11 @@ profile: 'ztc_analytics'
 
 require-dbt-version: ">=1.8.0"
 
-model-paths:    ["models"]
-test-paths:     ["tests"]
-macro-paths:    ["macros"]
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
 snapshot-paths: ["snapshots"]
-docs-paths:     ["docs"]
+docs-paths: ["docs"]
 
 clean-targets:
   - "target"
@@ -26,14 +26,14 @@ clean-targets:
 
 vars:
   watermark_schema: watermark
-  watermark_table:  dbt_high_watermark
+  watermark_table: dbt_high_watermark
 
 models:
   ztc_analytics:
 
     +persist_docs:
       relation: true
-      columns:  true
+      columns: true
 
     # ── MARTS LAYER ───────────────────────────────────────────────────────────
     # Models here are the consumer-facing surface: BI dashboards, spreadsheets,
@@ -46,7 +46,7 @@ models:
       +access: public
       +meta:
         owner: "analytics"
-        sla:   "daily"
+        sla: "daily"
 
     # ── ML / DATA SCIENCE ────────────────────────────────────────────────────
     # Python models owned by the data science team. Slightly looser governance:
@@ -62,3 +62,5 @@ models:
       +materialized: table
       +schema: metrics
       +tags: ["metrics"]
+flags:
+  require_generic_test_arguments_property: true
