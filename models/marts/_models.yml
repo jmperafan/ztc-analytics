@@ -50,6 +50,16 @@ models:
     description: >
       Anonymised member dimension. One row per current or former member of ZTC.
       Use this model to count active members and slice by demographic attributes.
+
+    # ── Semantic layer ──────────────────────────────────────────────────────
+    # Latest YAML spec: the semantic model, its entities/dimensions and its
+    # simple metrics live on the model itself. Ratio, cumulative and derived
+    # metrics built on top of these are in models/metrics/_metrics.yml.
+    semantic_model:
+      enabled: true
+      name: members
+    agg_time_dimension: member_since
+
     columns:
       - name: member_id
         description: Unique club membership number. Primary key.
@@ -59,12 +69,13 @@ models:
         entity:
           type: primary
           name: member
+          label: Member
       - name: member_since
         description: Date the member joined the club.
+        granularity: day
         dimension:
           type: time
           label: Member since
-        granularity: day
       - name: gender
         description: Member's gender.
         dimension:
@@ -81,10 +92,12 @@ models:
           type: categorical
           label: City
       - name: current_type_of_membership
-        description: Name of the currently active membership tier.
+        description: >
+          Membership products currently held by the member, joined with "^"
+          (e.g. "KNLTB lid^Senior lidmaatschap"). A member can hold several.
         dimension:
           type: categorical
-          label: Membership tier
+          label: Membership products
       - name: is_club_member
         description: True if the member holds an active club membership.
         dimension:
@@ -95,10 +108,7 @@ models:
         dimension:
           type: categorical
           label: KNLTB-registered
-    semantic_model:
-      enabled: true
-      name: members
-    agg_time_dimension: member_since
+
     metrics:
       - name: total_members
         label: Total members (current snapshot)
@@ -196,3 +206,332 @@ models:
         description: Number of days ahead of the last observed date this row represents.
       - name: model_type
         description: Model identifier — always "seasonal_dow_with_trend" for traceability.
+
+  - name: fct_coaching_lessons
+    description: >
+      One row per coaching lesson booked with a club coach, whether it was
+      delivered, cancelled or a no-show. Member demographics are not repeated
+      here — slice by them through the member entity instead.
+    semantic_model:
+      enabled: true
+      name: lessons
+    agg_time_dimension: lesson_date
+    columns:
+      - name: lesson_id
+        description: Unique lesson identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+        entity:
+          type: primary
+          name: lesson
+          label: Lesson
+      - name: member_id
+        description: >
+          Member who booked the lesson. Null for the ~5% of lessons booked
+          under a "GHOST-…" id with no member record; see source_member_id.
+        entity:
+          type: foreign
+          name: member
+      - name: coach_id
+        description: Coach who taught the lesson.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_coaches_anonymized')
+                field: coach_id
+        entity:
+          type: foreign
+          name: coach
+      - name: lesson_date
+        description: Date of the lesson.
+        granularity: day
+        dimension:
+          type: time
+          label: Lesson date
+      - name: lesson_type
+        description: Private, Semi-private, Group or Clinic.
+        dimension:
+          type: categorical
+          label: Lesson type
+      - name: skill_level
+        description: Beginner, Intermediate or Advanced.
+        dimension:
+          type: categorical
+          label: Skill level
+      - name: status
+        description: Completed, Cancelled or No-show.
+        dimension:
+          type: categorical
+          label: Lesson status
+      - name: day_of_week_name
+        description: Day of the week the lesson took place.
+        dimension:
+          type: categorical
+          label: Day of week
+      - name: is_weekend
+        description: True if the lesson was on a Saturday or Sunday.
+        dimension:
+          type: categorical
+          label: Weekend
+      - name: start_hour
+        description: Hour of day the lesson started (0–23).
+        dimension:
+          type: categorical
+          label: Start hour
+      - name: court_number
+        description: Court the lesson was held on.
+        dimension:
+          type: categorical
+          label: Court
+      - name: source_member_id
+        description: Member id as recorded in ztc_core, including "GHOST-…" ids.
+      - name: duration_minutes
+        description: Length of the lesson in minutes.
+      - name: price
+        description: Price charged for the lesson, in EUR.
+    metrics:
+      - name: lessons_booked
+        label: Lessons booked
+        description: All lessons booked, whatever their outcome.
+        type: simple
+        # count_distinct on the primary key equals a row count, and unlike
+        # `count` it is accepted as the input to a conversion metric.
+        agg: count_distinct
+        expr: lesson_id
+      - name: lessons_delivered
+        label: Lessons delivered
+        description: Lessons that took place.
+        type: simple
+        agg: count
+        expr: lesson_id
+        filter: |
+          {{ Dimension('lesson__status') }} = 'Completed'
+      - name: lessons_cancelled
+        label: Lessons cancelled
+        type: simple
+        agg: count
+        expr: lesson_id
+        fill_nulls_with: 0
+        filter: |
+          {{ Dimension('lesson__status') }} = 'Cancelled'
+      - name: lesson_no_shows
+        label: Lesson no-shows
+        description: Lessons the member didn't turn up for.
+        type: simple
+        agg: count
+        expr: lesson_id
+        fill_nulls_with: 0
+        filter: |
+          {{ Dimension('lesson__status') }} = 'No-show'
+      - name: lesson_revenue
+        label: Lesson revenue
+        description: Price of delivered lessons, in EUR. Cancelled lessons and no-shows are excluded.
+        type: simple
+        agg: sum
+        expr: price
+        filter: |
+          {{ Dimension('lesson__status') }} = 'Completed'
+      - name: coaching_hours
+        label: Coaching hours
+        description: Hours of delivered coaching.
+        type: simple
+        agg: sum
+        expr: duration_minutes / 60.0
+        filter: |
+          {{ Dimension('lesson__status') }} = 'Completed'
+      - name: students_coached
+        label: Students coached
+        description: Distinct members who booked at least one lesson.
+        type: simple
+        agg: count_distinct
+        expr: member_id
+
+  - name: fct_member_invoices
+    description: >
+      One row per invoice sent to a member (dues, lessons, fees). Member
+      demographics are reachable through the member entity.
+    semantic_model:
+      enabled: true
+      name: invoices
+    agg_time_dimension: invoice_date
+    columns:
+      - name: invoice_id
+        description: Unique invoice identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+        entity:
+          type: primary
+          name: invoice
+          label: Invoice
+      - name: member_id
+        description: >
+          Member invoiced. Null for the ~5% of invoices issued to a "GHOST-…"
+          id with no member record; see source_member_id.
+        entity:
+          type: foreign
+          name: member
+      - name: invoice_date
+        description: Date the invoice was issued.
+        granularity: day
+        dimension:
+          type: time
+          label: Invoice date
+      - name: due_date
+        description: Date payment is due.
+        granularity: day
+        dimension:
+          type: time
+          label: Due date
+      - name: paid_date
+        description: Date the invoice was paid; null if unpaid.
+        granularity: day
+        dimension:
+          type: time
+          label: Paid date
+      - name: status
+        description: Paid, Pending or Overdue.
+        dimension:
+          type: categorical
+          label: Invoice status
+      - name: payment_method
+        description: Cash, Credit Card, Bank Transfer or Direct Debit.
+        dimension:
+          type: categorical
+          label: Payment method
+      - name: is_paid
+        description: True once the invoice is paid.
+        dimension:
+          type: categorical
+          label: Paid
+      - name: is_overdue
+        description: True if unpaid past the due date.
+        dimension:
+          type: categorical
+          label: Overdue
+      - name: source_member_id
+        description: Member id as recorded in ztc_core, including "GHOST-…" ids.
+      - name: days_to_pay
+        description: Days between invoice and payment; null if unpaid.
+      - name: total_amount
+        description: Invoice total, in EUR.
+    metrics:
+      - name: invoices_issued
+        label: Invoices issued
+        type: simple
+        agg: count
+        expr: invoice_id
+      - name: invoiced_amount
+        label: Invoiced amount
+        description: Total invoiced, in EUR, whether paid or not.
+        type: simple
+        agg: sum
+        expr: total_amount
+      - name: paid_amount
+        label: Paid amount
+        description: Invoiced amount that has been paid, in EUR.
+        type: simple
+        agg: sum
+        expr: total_amount
+        filter: |
+          {{ Dimension('invoice__is_paid') }}
+      - name: outstanding_amount
+        label: Outstanding amount
+        description: Invoiced amount not yet paid (pending or overdue), in EUR.
+        type: simple
+        agg: sum
+        expr: total_amount
+        filter: |
+          not {{ Dimension('invoice__is_paid') }}
+      - name: overdue_amount
+        label: Overdue amount
+        description: Unpaid invoiced amount past its due date, in EUR.
+        type: simple
+        agg: sum
+        expr: total_amount
+        filter: |
+          {{ Dimension('invoice__is_overdue') }}
+      - name: avg_days_to_pay
+        label: Average days to pay
+        description: Mean days from invoice to payment, over paid invoices.
+        type: simple
+        agg: average
+        expr: days_to_pay
+        filter: |
+          {{ Dimension('invoice__is_paid') }}
+      - name: paying_members
+        label: Invoiced members
+        description: Distinct members who received at least one invoice.
+        type: simple
+        agg: count_distinct
+        expr: member_id
+
+  - name: dim_coaches_anonymized
+    description: >
+      One row per club coach, current or former. Names and contact details are
+      excluded; coaches are identified by coach_id only.
+    semantic_model:
+      enabled: true
+      name: coaches
+    agg_time_dimension: hire_date
+    columns:
+      - name: coach_id
+        description: Unique coach identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+        entity:
+          type: primary
+          name: coach
+          label: Coach
+      - name: hire_date
+        description: Date the coach joined the club.
+        granularity: day
+        dimension:
+          type: time
+          label: Hire date
+      - name: specialty
+        description: Coaching specialty (e.g. Junior development, Competitive).
+        dimension:
+          type: categorical
+          label: Specialty
+      - name: certification_level
+        description: Certified, Professional, Master or Elite.
+        dimension:
+          type: categorical
+          label: Certification level
+      - name: is_active
+        description: True if the coach currently works at the club.
+        dimension:
+          type: categorical
+          label: Active coach
+      - name: years_at_club
+        description: Whole years since the coach was hired.
+      - name: hourly_rate
+        description: Coach's hourly rate, in EUR.
+    metrics:
+      - name: coaches
+        label: Coaches
+        description: >
+          Distinct coaches. Grouped by metric_time this counts coaches by hire
+          date, not headcount at the time.
+        type: simple
+        agg: count_distinct
+        expr: coach_id
+      - name: active_coaches
+        label: Active coaches
+        description: >
+          Coaches currently employed. Like coaches, grouping by metric_time
+          counts them by hire date.
+        type: simple
+        agg: count_distinct
+        expr: coach_id
+        filter: |
+          {{ Dimension('coach__is_active') }}
+      - name: avg_coach_hourly_rate
+        label: Average coach hourly rate
+        description: Mean listed hourly rate across coaches, in EUR.
+        type: simple
+        agg: average
+        expr: hourly_rate
