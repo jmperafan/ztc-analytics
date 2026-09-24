@@ -144,4 +144,4 @@ Ossie is a lowest common denominator, so some semantics don't survive:
 - **Counts on dimension tables slice by their time dimension.** `total_members` and `active_coaches` by `metric_time` count joiners and hires per period, not headcount.
 - **One member has no `member_since`.** They show up as a `<nil>` year and fall outside `cumulative_members`. Filter `metric_time is not null` when ordering by year.
 - **About 5% of lessons and invoices belong to "GHOST-…" member ids** with no member record. They surface as a `<nil>` member bucket. The per-member ratios filter them out of the numerator.
-- **Data ends in October 2024.** Later court-usage years hold placeholder slots only, so utilization reads 0.
+- **Court-usage data ends in October 2024.** Later years hold placeholder slots only, so utilization reads 0. Lessons and invoices run into 2025.
