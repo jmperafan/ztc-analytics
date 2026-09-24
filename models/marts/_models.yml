@@ -5,8 +5,7 @@ models:
       court slot (same grain as fct_court_usage in ztc_core), filtered to
       non-winter-break days and enriched with start_hour. Use this model when you
       need the individual slot detail sliced by hour — e.g. a heatmap of activity
-      by hour and reservation type. For pre-aggregated court × hour × date summaries
-      joined with weather, use fct_hourly_weather_usage instead.
+      by hour and reservation type.
     columns:
       - name: court_number
         description: Tennis court number (1–5).
