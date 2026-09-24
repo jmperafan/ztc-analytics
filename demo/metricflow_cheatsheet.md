@@ -1,27 +1,22 @@
 # MetricFlow cheatsheet
 
-There are two CLIs for the same engine:
+Commands for the dbt Semantic Layer on dbt v2, through the dbt platform CLI, Studio IDE or VS Code. All of them start with `dbt sl` and run remotely on the dbt platform.
 
-| | dbt platform CLI / Studio IDE / VS Code | Self-hosted MetricFlow |
-|---|---|---|
-| Prefix | `dbt sl` | `mf` (`pip install "dbt-metricflow[snowflake]"`) |
-| Runs | Remotely, on the dbt platform (works with dbt v2) | Locally, against your `profiles.yml` (dbt Core v1 only) |
-
-Flags below were checked against the real CLIs on 2026-09-23 (dbt platform CLI 0.40.23, `mf` 0.15.0). Where they differ from the docs, this sheet follows the CLI.
+Flags below were checked against the dbt platform CLI 0.40.23 on 2026-09-23. Where they differ from the docs, this sheet follows the CLI.
 
 ---
 
 ## Discover
 
-| Task | `dbt sl` | `mf` |
-|---|---|---|
-| List metrics (+ their dimensions) | `dbt sl list metrics` | `mf list metrics` |
-| Find one metric | `dbt sl list metrics --search court_slots` | `mf list metrics --search court_slots` |
-| All dimensions per metric | `dbt sl list metrics --show-all-dimensions` | `mf list metrics --show-all-dimensions` |
-| Dimensions shared by metrics | `dbt sl list dimensions --metrics total_members,knltb_members` | same with `mf` |
-| Entities shared by metrics | `dbt sl list entities --metrics court_utilization` | same with `mf` |
-| Values of a dimension | `dbt sl list dimension-values --metrics total_members --dimension member__gender` | same with `mf` (+ `--start-time/--end-time`) |
-| Saved queries | `dbt sl list saved-queries [--show-exports] [--show-parameters]` | `mf list saved-queries` |
+| Task | Command |
+|---|---|
+| List metrics (+ their dimensions) | `dbt sl list metrics` |
+| Find one metric | `dbt sl list metrics --search court_slots` |
+| All dimensions per metric | `dbt sl list metrics --show-all-dimensions` |
+| Dimensions shared by metrics | `dbt sl list dimensions --metrics total_members,knltb_members` |
+| Entities shared by metrics | `dbt sl list entities --metrics court_utilization` |
+| Values of a dimension | `dbt sl list dimension-values --metrics total_members --dimension member__gender` |
+| Saved queries | `dbt sl list saved-queries [--show-exports] [--show-parameters]` |
 
 `--search` is effectively an exact name match on the dbt platform CLI: `court_slots` matches, `court` returns nothing.
 
@@ -46,17 +41,15 @@ dbt sl query --metrics booked_slots --group-by slot_id__court_number --order-by 
 dbt sl query --saved-query membership_mix
 ```
 
-| Flag | `dbt sl query` | `mf query` |
-|---|---|---|
-| Metrics | `--metrics a,b` | `--metrics a,b` |
-| Group by | `--group-by metric_time__year,member__city` | same |
-| Filter (repeatable) | `--where "..."` | `--where "..."` |
-| Sort | `--order-by -metric_time` | **`--order`** `-metric_time` (the docs say `--order-by`, which errors) |
-| Limit | `--limit 500` (default 100, max 1024) | `--limit 500` (default: none) |
-| Show SQL | `--compile` (does not run the query) | `--explain` (+ `--show-dataflow-plan`, `--display-plans`) |
-| Time range | n/a, use `--where` | `--start-time 2024-01-01 --end-time 2024-06-30` |
-| To CSV | n/a | `--csv out.csv` |
-| Number formatting | n/a | `--decimals 2` |
+| Flag | `dbt sl query` |
+|---|---|
+| Metrics | `--metrics a,b` |
+| Group by | `--group-by metric_time__year,member__city` |
+| Filter (repeatable) | `--where "..."` |
+| Sort | `--order-by -metric_time` |
+| Limit | `--limit 500` (default 100, max 1024) |
+| Show SQL | `--compile` (does not run the query) |
+| Time range | use `--where` |
 
 No spaces after commas: `--metrics a,b`, not `--metrics a, b`.
 
@@ -92,14 +85,10 @@ In zsh, add `setopt BRACECCL` to `~/.zshrc` if `{{ }}` gets mangled. Always sing
 | Task | Command |
 |---|---|
 | Refresh `semantic_manifest.json` after any YAML change | `dbt parse` |
-| Semantic + warehouse validation | `dbt sl validate` (dbt platform) · `mf validate-configs` (local) |
-| Skip warehouse checks (local) | `mf validate-configs --skip-dw` |
-| Show warnings too (local) | `mf validate-configs --show-all --verbose-issues` |
-| Warehouse connectivity (local) | `mf health-checks` |
-| Guided tutorial (local) | `mf tutorial` |
+| Semantic + warehouse validation | `dbt sl validate` |
 | Migrate legacy YAML to the latest spec | `uvx dbt-autofix deprecations --semantic-layer [--dry-run]` |
 
-`mf validate-configs` passing doesn't guarantee a metric is queryable. Always run one real query.
+`dbt sl validate` passing doesn't guarantee a metric is queryable. Always run one real query.
 
 ---
 
@@ -117,11 +106,10 @@ In zsh, add `setopt BRACECCL` to `~/.zshrc` if `{{ }}` gets mangled. Always sing
 
 | Task | Command |
 |---|---|
-| Ossie → dbt (`osi/*.json` → `models/metrics/ossie/`) | `uv run scripts/ossie_bridge.py import` |
-| dbt → Ossie (`target/semantic_manifest.json` → `target/ossie_document.yaml`) | `dbt parse && uv run scripts/ossie_bridge.py export` |
-| Converter directly | `ossie-dbt msi-to-ossie -i target/semantic_manifest.json -o out.yaml` · `ossie-dbt ossie-to-msi -i model.yaml -o semantic_manifest.json` |
+| dbt → Ossie (`target/semantic_manifest.json` → `target/ossie_document.yaml`) | `dbt parse && uv run scripts/ossie_bridge.py` |
+| Converter directly | `ossie-dbt msi-to-ossie -i target/semantic_manifest.json -o out.yaml` |
 
-On dbt v1.12, `dbt parse` also reads `osi/` natively and writes `target/osi_document.json`. dbt v2 does neither yet.
+dbt v2 doesn't read or write Ossie natively yet. The semantic layer is authored in dbt YAML only.
 
 ---
 
