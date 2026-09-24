@@ -1,14 +1,13 @@
 # Semantic layer demo: dbt metrics + Apache Ossie
 
-A three-part demo on the ZTC tennis club data, running on dbt v2 (Fusion) through the dbt platform CLI.
+A two-part demo on the ZTC tennis club data, running on dbt v2 (Fusion) through the dbt platform CLI. Everything is authored in the latest YAML spec.
 
 | Part | Story | Where it lives |
 |---|---|---|
-| 1. dbt Semantic Layer | Metrics defined once in dbt, joined and queried the same way everywhere | `models/marts/_models.yml` (members, lessons, invoices, coaches), `models/metrics/` |
-| 2. Ossie → dbt | A semantic model authored in the vendor-neutral Apache Ossie format, served by the dbt Semantic Layer | `osi/court_usage.json` → `scripts/ossie_bridge.py` → `models/metrics/ossie/` |
-| 3. dbt → Ossie | Export everything back to Ossie for other tools, and show what gets lost | `target/ossie_document.yaml` |
+| 1. dbt Semantic Layer | Metrics defined once in dbt, joined and queried the same way everywhere | `models/marts/_models.yml` (members, lessons, invoices, coaches), `models/metrics/` (incl. court usage in `ossie/`) |
+| 2. dbt → Ossie | Export the semantic layer to the vendor-neutral Apache Ossie format for other tools, and show what gets lost | `scripts/ossie_bridge.py` → `target/ossie_document.yaml` |
 
-Every command and result below was run against `ANALYTICS_DEV` on 2026-09-23.
+Every command and result below was run against `ANALYTICS_DEV` on 2026-09-24 (dbt 2.0.6).
 
 ---
 
@@ -53,9 +52,9 @@ dbt sl query --metrics total_members,cumulative_members,new_members_yoy_change \
 
 ```
 | METRIC_TIME__YEAR | CUMULATIVE_MEMBERS | NEW_MEMBERS_YOY_CHANGE | TOTAL_MEMBERS |
-| 2024-01-01        |                397 | -55                    | 33            |
-| 2023-01-01        |                309 | 25                     | 88            |
-| 2022-01-01        |                246 | -5                     | 63            |
+| 2024-01-01        |                396 | -55                    | 33            |
+| 2023-01-01        |                308 | 25                     | 88            |
+| 2022-01-01        |                245 | -5                     | 63            |
 ```
 
 ```bash
@@ -117,7 +116,8 @@ dbt sl query --metrics invoiced_amount,invoiced_amount_mom_growth --group-by met
 
 # Conversion: share of new members who book a lesson within 90 days
 dbt sl query --metrics new_member_lesson_conversion --group-by metric_time__year \
-  --order-by -metric_time__year --limit 2
+  --where "{{ TimeDimension('metric_time', 'year') }} is not null" \
+  --order-by -metric_time__year --limit 2   # one member has no join date
 ```
 
 ```
@@ -133,29 +133,11 @@ dbt sl query --saved-query coaching_performance --limit 5
 dbt sl query --saved-query receivables --limit 5
 ```
 
----
+### 1d. Court usage
 
-## Part 2: Apache Ossie → dbt
-
-**Talking point:** Apache Ossie (formerly Open Semantic Interchange, now in the Apache Incubator) is a vendor-neutral YAML/JSON format for datasets, fields, relationships and metrics. The court-usage semantics here were authored in Ossie, not dbt YAML.
-
-Open [osi/court_usage.json](../osi/court_usage.json). Point out:
-- The `ai_context` blocks. The Dutch reservation types come with English synonyms for AI agents.
-- The metrics are plain SQL aggregates. `court_utilization` is written as `(SUM(...)) / (SUM(...))`.
-
-**How it gets into dbt:** dbt v1.12 reads `osi/` natively; dbt v2 doesn't yet. The bridge runs the official Apache Ossie dbt converter in an isolated uv environment (effectively a throwaway container) and generates a dbt model plus latest-spec YAML:
-
-```bash
-uv run scripts/ossie_bridge.py import
-# osi/court_usage.json -> models/metrics/ossie/ossie_court_usage.sql, models/metrics/ossie/_ossie_court_usage.yml
-dbt build --select ossie_court_usage
-```
-
-Show the generated [_ossie_court_usage.yml](../models/metrics/ossie/_ossie_court_usage.yml):
-- `SUM(CASE WHEN ... THEN 1 ELSE 0 END)` became `agg: sum_boolean`.
-- The ratio became a real `type: ratio` metric.
-
-To a consumer, the Ossie metrics are just metrics:
+The `court_usage` semantic model in [models/metrics/ossie/](../models/metrics/ossie/_ossie_court_usage.yml) was first written in Apache Ossie and converted to the latest spec. It's plain dbt YAML now, since dbt v2 can't read Ossie documents yet. Point out:
+- `sum_boolean` metrics built on a SQL expression, not a column.
+- `court_utilization` as a ratio of two of them.
 
 ```bash
 dbt sl query --metrics court_slots,open_slots,booked_slots,court_utilization \
@@ -179,13 +161,13 @@ The data ends in October 2024. Later years contain placeholder slots only, so ut
 
 ---
 
-## Part 3: dbt → Apache Ossie
+## Part 2: dbt → Apache Ossie
 
-**Talking point:** interchange runs both ways. Any tool that reads Ossie can pick up the dbt definitions.
+**Talking point:** Apache Ossie (formerly Open Semantic Interchange, now in the Apache Incubator) is a vendor-neutral format for datasets, fields, relationships and metrics. Any tool that reads Ossie can pick up the dbt definitions. dbt v2 doesn't export Ossie natively yet, so the bridge runs the official Apache Ossie dbt converter in an isolated uv environment.
 
 ```bash
 dbt parse
-uv run scripts/ossie_bridge.py export
+uv run scripts/ossie_bridge.py
 # [warning] CUMULATIVE_SEMANTICS_LOSS: cumulative_members
 # [warning] CUMULATIVE_SEMANTICS_LOSS: invoiced_amount_mtd
 # [warning] CUMULATIVE_SEMANTICS_LOSS: invoiced_amount_trailing_28d
@@ -215,8 +197,5 @@ Open `target/ossie_document.yaml`. All 5 datasets are there, plus the 3 relation
 - **Conversion metrics reject a `count` input metric** on Fusion ("agg type SUM"). `lessons_booked` uses `count_distinct` on the primary key instead, which gives the same numbers.
 - **Counts on dimension tables slice by their time dimension.** `total_members` and `active_coaches` by `metric_time` count joiners and hires per period, not headcount.
 - **`agg_time_dimension` goes at the model level on Fusion.** The docs show it under `semantic_model:`, but Fusion 2.0.6 rejects that.
-- **Native Ossie on dbt v1.12 parses but can't be queried.** Ossie has no aggregation time dimension, so every Ossie-sourced metric fails with "Invalid aggregation time dimension configuration", even though `mf validate-configs` passes. The bridge fills it in: from a `DBT` custom extension `{"agg_time_dimension": "..."}` if present, otherwise from the dataset's only time field.
-- **Ossie versions:** dbt v1.12 accepts only `0.1.0`/`0.1.1` (with the `semantic_model` array wrapper). The converter's main branch is `0.2.0.dev0`, which uses a flat document. The bridge reads both shapes; its export writes `0.2.0.dev0`.
-- **The Ossie `source` is a physical table name**, which is environment-specific. The bridge refs the model by alias, so one document works in dev and prod. Native v1.12 matches on the exact `database.schema.alias`.
+- **Ossie has no aggregation time dimension**, so `agg_time_dimension` is lost on export. The converter writes the `0.2.0.dev0` document shape.
 - **The converter isn't on PyPI**, despite its README. The bridge installs it from git, pinned to a commit.
-- **If you move to v1.12 later**, dbt reads `osi/` natively *and* the generated YAML, so `court_usage` would be defined twice. Pick one: delete `models/metrics/ossie/`, or move the Ossie documents out of `osi/`.

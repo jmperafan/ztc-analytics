@@ -38,9 +38,8 @@ saved_queries:
   - name: court_utilization_by_court
     label: Court utilization by court
     description: >
-      Yearly utilisation per court. The metrics come from the Apache Ossie
-      document in osi/court_usage.json, bridged into dbt by
-      scripts/ossie_bridge.py — consumers can't tell, which is the point.
+      Yearly utilisation per court, from the court_usage semantic model in
+      models/metrics/ossie/.
     query_params:
       metrics:
         - booked_slots

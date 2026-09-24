@@ -12,7 +12,7 @@
 name: 'ztc_analytics'
 profile: 'ztc_analytics'
 
-require-dbt-version: ">=1.8.0"
+require-dbt-version: ">=2.0.0"
 
 model-paths: ["models"]
 test-paths: ["tests"]
