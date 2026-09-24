@@ -1,0 +1,133 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# ADVANCED METRICS
+#
+# Simple metrics are defined on the model they aggregate (see
+# dim_members_anonymized in models/marts/_models.yml). Metrics built from other
+# metrics — ratio, cumulative, derived — live here under the top-level key.
+# ──────────────────────────────────────────────────────────────────────────────
+
+metrics:
+
+  - name: knltb_share
+    label: KNLTB share
+    description: Share of members who are also registered with the national tennis federation.
+    type: ratio
+    numerator: knltb_members
+    denominator: total_members
+
+  - name: cumulative_members
+    label: Cumulative members
+    description: >
+      Running total of members by join date. With no window this accumulates
+      over all time, which is why the time spine starts in 1980 — it must reach
+      back to the earliest member_since.
+    type: cumulative
+    input_metric: total_members
+
+  - name: new_members_yoy_change
+    label: New members, YoY change
+    description: >
+      New members in a period minus new members in the same period one year
+      earlier. Query with metric_time__year for a clean year-on-year view.
+    type: derived
+    expr: new_members - new_members_prior_year
+    input_metrics:
+      - name: total_members
+        alias: new_members
+      - name: total_members
+        alias: new_members_prior_year
+        offset_window: 1 year
+
+  # ── Coaching ─────────────────────────────────────────────────────────────
+
+  - name: lesson_cancellation_rate
+    label: Lesson cancellation rate
+    description: Share of booked lessons that were cancelled.
+    type: ratio
+    numerator: lessons_cancelled
+    denominator: lessons_booked
+
+  - name: lesson_no_show_rate
+    label: Lesson no-show rate
+    description: Share of booked lessons the member didn't attend.
+    type: ratio
+    numerator: lesson_no_shows
+    denominator: lessons_booked
+
+  - name: revenue_per_coaching_hour
+    label: Revenue per coaching hour
+    description: Lesson revenue divided by hours of delivered coaching, in EUR.
+    type: ratio
+    numerator: lesson_revenue
+    denominator: coaching_hours
+
+  - name: lessons_per_student
+    label: Lessons per student
+    description: >
+      Delivered lessons per distinct member coached. Lessons booked under an
+      unknown ("GHOST-…") member are left out of the numerator too, since
+      they can't be counted in the denominator.
+    type: ratio
+    numerator:
+      name: lessons_delivered
+      filter: |
+        {{ Entity('member') }} is not null
+    denominator: students_coached
+
+  - name: new_member_lesson_conversion
+    label: New member → lesson conversion
+    description: >
+      Share of new members who book a lesson within 90 days of joining. Lesson
+      data starts in 2024, so only 2024 joiners can convert.
+    type: conversion
+    entity: member
+    calculation: conversion_rate
+    base_metric: total_members
+    conversion_metric: lessons_booked
+    window: 90 days
+
+  # ── Billing ──────────────────────────────────────────────────────────────
+
+  - name: collection_rate
+    label: Collection rate
+    description: Share of the invoiced amount that has been paid.
+    type: ratio
+    numerator: paid_amount
+    denominator: invoiced_amount
+
+  - name: invoiced_per_member
+    label: Invoiced amount per member
+    description: >
+      Invoiced amount per distinct member invoiced, in EUR. Invoices to unknown
+      ("GHOST-…") members are left out of the numerator to match the denominator.
+    type: ratio
+    numerator:
+      name: invoiced_amount
+      filter: |
+        {{ Entity('member') }} is not null
+    denominator: paying_members
+
+  - name: invoiced_amount_mtd
+    label: Invoiced amount, month to date
+    description: Running invoiced amount, resetting at the start of each month.
+    type: cumulative
+    input_metric: invoiced_amount
+    grain_to_date: month
+
+  - name: invoiced_amount_trailing_28d
+    label: Invoiced amount, trailing 28 days
+    type: cumulative
+    input_metric: invoiced_amount
+    window: 28 days
+
+  - name: invoiced_amount_mom_growth
+    label: Invoiced amount, MoM growth
+    description: Change in invoiced amount versus the previous month, as a share of the previous month.
+    type: derived
+    expr: (current_month - previous_month) / nullif(previous_month, 0)
+    input_metrics:
+      - name: invoiced_amount
+        alias: current_month
+      - name: invoiced_amount
+        alias: previous_month
+        offset_window: 1 month

@@ -1,0 +1,80 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# SAVED QUERIES
+#
+# A saved query bundles metrics, group-bys and filters under one name so the
+# same question is asked the same way everywhere. Run it with:
+#
+#   dbt sl query --saved-query membership_mix
+#
+# The exports block additionally materialises the result into the warehouse on
+# `dbt build --resource-type saved_query`, which is what BI tools read.
+# ──────────────────────────────────────────────────────────────────────────────
+
+saved_queries:
+
+  - name: membership_mix
+    label: Membership mix
+    description: >
+      Membership headcount broken down by tier and city. This is the standard
+      slice behind the board's membership report — pulling the same three
+      metrics ad hoc invites drift in how "active" is defined.
+    query_params:
+      metrics:
+        - total_members
+        - active_members
+        - knltb_members
+      group_by:
+        - Dimension('member__current_type_of_membership')
+        - Dimension('member__city')
+      where:
+        # Members with no recorded tier are data-entry artefacts, not a segment.
+        - "{{ Dimension('member__current_type_of_membership') }} is not null"
+    exports:
+      - name: membership_mix
+        config:
+          export_as: table
+          schema: metrics
+
+  - name: court_utilization_by_court
+    label: Court utilization by court
+    description: >
+      Yearly utilisation per court. The metrics come from the Apache Ossie
+      document in osi/court_usage.json, bridged into dbt by
+      scripts/ossie_bridge.py — consumers can't tell, which is the point.
+    query_params:
+      metrics:
+        - booked_slots
+        - open_slots
+        - court_utilization
+      group_by:
+        - TimeDimension('metric_time', 'year')
+        - Dimension('slot_id__court_number')
+
+  - name: coaching_performance
+    label: Coaching performance
+    description: >
+      Monthly coaching volume, revenue and reliability by coach specialty.
+      Specialty comes from the coaches semantic model, joined through the
+      coach entity on each lesson.
+    query_params:
+      metrics:
+        - lessons_delivered
+        - lesson_revenue
+        - revenue_per_coaching_hour
+        - lesson_cancellation_rate
+      group_by:
+        - TimeDimension('metric_time', 'month')
+        - Dimension('coach__specialty')
+
+  - name: receivables
+    label: Receivables
+    description: Monthly billing health — invoiced, collected, still outstanding.
+    query_params:
+      metrics:
+        - invoiced_amount
+        - paid_amount
+        - outstanding_amount
+        - overdue_amount
+        - collection_rate
+      group_by:
+        - TimeDimension('metric_time', 'month')
